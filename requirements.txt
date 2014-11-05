@@ -1,0 +1,9 @@
+warc
+pytumblr
+#streaming handling has been substantially changed since last release
+#however, it is broken in master
+git+https://github.com/tweepy/tweepy.git@05fe3684f9da032ae17e37596d0c49aff19fcd5a#egg=tweepy
+#marking this down due to https://github.com/tweepy/tweepy/issues/501
+requests<2.4.0
+html5lib
+beautifulsoup4
