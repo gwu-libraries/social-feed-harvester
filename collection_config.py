@@ -1,11 +1,12 @@
 #The name of the collection being harvested.
-collection = "library"
+collection = "test"
 #The location to put the collection.
-data_path = "/tmp/library"
-#If True, will not write the collected resources to WARC.
+data_path = "/tmp/test_crawl"
+#If True, will not write the collected fetchables to WARC.
 dry_run=False
-#Types of resources to exclude from fetching.
-exclude_fetch=["Image", "Html", "UnknownResource"]
+#Types of fetchables to exclude from fetching.
+#exclude_fetch=["Image", "Html", "UnknownResource"]
+exclude_fetch=[]
 seeds = [
     #A Twitter user timeline seed
     {
@@ -16,7 +17,7 @@ seeds = [
     # {
     #    "type": "blog",
     #    "blog_name": "libraryjournal",
-    #    "max_posts": 20
+    #    # "max_posts": 20
     # },
     #Use warcs from this stream as seeds for further fetching.
     # {

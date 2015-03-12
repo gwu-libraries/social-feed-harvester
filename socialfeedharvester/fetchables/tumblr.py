@@ -1,4 +1,5 @@
 import urllib
+import logging
 
 import pytumblr
 import oauth2 as oauth
@@ -6,13 +7,12 @@ from httplib2 import RedirectLimit
 import html5lib
 from config import tumblr_api_key
 from config import tumblr_post_limit as post_limit
-from socialfeedharvester.resource import Image, UnknownResource
+from socialfeedharvester.fetchables.resource import Image, UnknownResource
 import youtube
 import vimeo
-import logging
 import httplib2 as http_client
-from utilities import HttpLibMixin
-from utilities import HttLib2ResponseAdapter
+from socialfeedharvester.utilities import HttpLibMixin
+from socialfeedharvester.utilities import HttLib2ResponseAdapter
 
 log = logging.getLogger(__name__)
 
@@ -59,14 +59,12 @@ class Blog():
                 posts.append(Posts(self.blog_name, offset, self.sfh))
             #Set the last one
             posts[-1].is_last = True
-            #Add to left side of queue
-            self.sfh.queue_extendleft(reversed(posts))
 
             #Set state if fetched all posts
             if post_upper_bound != self.max_posts:
                 self.sfh.set_state(__name__, "%s.updated" % self.blog_name, updated)
 
-            return warc_records
+            return warc_records, reversed(posts)
         else:
             log.debug("No new posts for %s", self.blog_name)
             return None
@@ -89,17 +87,14 @@ class Posts():
         (posts, resp, warc_records) = tumblr_client.posts(self.blog_name, limit=post_limit,
                 offset=self.offset)
 
-        #Items to append to the left of the queue
-        left_queue_items = []
-        #Items to append to the right of the queue
-        right_queue_items = []
+        linked_fetchables = []
         for post in posts['posts']:
             post_id = post['id']
             if post['type'] == 'photo':
                 for photo in post['photos']:
                     #Seems that first alt size is the biggest
                     url = photo['alt_sizes'][0]['url']
-                    left_queue_items.append(Image(url, self.sfh))
+                    linked_fetchables.append(Image(url, self.sfh))
             elif post['type'] == 'video':
                 #Video type:  youtube, vimeo, unknown
                 #source_url is only present sometimes
@@ -118,31 +113,28 @@ class Posts():
                         if video_url.startswith("//"):
                             video_url = "http:" + video_url
                         if post['video_type'] == 'youtube':
-                            left_queue_items.append(youtube.Video(video_url, self.sfh))
+                            linked_fetchables.append(youtube.Video(video_url, self.sfh))
                         elif post['video_type'] == 'vimeo':
-                            left_queue_items.append(vimeo.Video(video_url, self.sfh))
+                            linked_fetchables.append(vimeo.Video(video_url, self.sfh))
             elif post['type'] == 'text':
                 #Parse body
                 body_fragment = html5lib.parseFragment(post['body'], namespaceHTMLElements=False)
                 #Extract links
                 for a_elem in body_fragment.findall(".//a[@href]"):
-                    left_queue_items.append(UnknownResource(a_elem.attrib['href'], self.sfh))
+                    linked_fetchables.append(UnknownResource(a_elem.attrib['href'], self.sfh))
                 #Extract images
                 for img_elem in body_fragment.findall(".//img[@src]"):
-                    left_queue_items.append(Image(img_elem.attrib['src'], self.sfh))
+                    linked_fetchables.append(Image(img_elem.attrib['src'], self.sfh))
                 #TODO:  Consider whether there are other elements that should be parsed.
                 #Also, need to test if original is markdown, do we get html or markdown.
             #TODO: Other post types
-
-        self.sfh.queue_extendleft(left_queue_items)
-        self.sfh.queue_extend(right_queue_items)
 
         #If last, set last_post_id
         if self.is_last:
             last_post_id = posts["posts"][-1]["id"]
             self.sfh.set_state(__name__, "%s.last_post_id" % self.blog_name, last_post_id)
 
-        return warc_records
+        return warc_records, linked_fetchables
 
 
 class TumblrRequest(pytumblr.TumblrRequest, HttpLibMixin):

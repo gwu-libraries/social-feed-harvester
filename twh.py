@@ -1,16 +1,18 @@
+import time
+import logging
+import httplib as http_client
+
 from tweepy.streaming import StreamListener
 from tweepy import OAuthHandler
 from tweepy import Stream
 import config
-import time
 import os
-import logging
 import warc
 from socialfeedharvester.utilities import HttpLibMixin
 import requests
-import httplib as http_client
 import socialfeedharvester.utilities as utilities
-import socialfeedharvester.twitter as twitter
+import socialfeedharvester.fetchables.twitter as twitter
+
 
 """
 Harvests from Twitter streaming api to warc files.

@@ -1,42 +1,60 @@
-from collections import deque
 import logging
 import time
-
-import warc
 import os
-from socialfeedharvester.tumblr import Blog
-from socialfeedharvester.twitter import TweetWarc, UserTimeline
-from socialfeedharvester.resource import Resource
-from config import wait
-import codecs
+import argparse
 import json
+from socialfeedharvester.fetchables.tumblr import Blog
+from socialfeedharvester.fetchables.twitter import TweetWarc, UserTimeline
+from socialfeedharvester.fetchables.resource import Resource
+from config import wait
+from socialfeedharvester.fetchable_queue import FetchableDeque
+from socialfeedharvester.harvest_state_store import DictHarvestStateStore, JsonHarvestStateStore
+from socialfeedharvester.fetch_strategy import DefaultFetchStrategy
+from socialfeedharvester.warc import DryRunWarcWriter, WarcWriter
 import socialfeedharvester.utilities as utilities
+
 
 log = logging.getLogger("socialfeedharvester")
 
 
 class SocialFeedHarvester():
-    def __init__(self, collection, data_path, seeds):
-        self.data_path = data_path
-        self.warc_filepath = utilities.generate_warc_filepath(data_path, collection)
-
-        #Declare queue
-        #TODO:  This should be serialized to disk.
-        self._queue = deque()
-
-        #Load state.  State is what has already been processed from a feed.
-        self.state_filepath = os.path.join(data_path, "state.json")
-        if os.path.exists(self.state_filepath):
-            log.debug("Loading state from %s", self.state_filepath)
-            with codecs.open(self.state_filepath, "r") as state_file:
-                self._state = json.load(state_file)
+    def __init__(self, seeds, auths=None,
+                 fetchable_queue=None, harvest_state_store=None, fetch_strategy=None, warc_writer=None):
+        #Queue
+        if fetchable_queue:
+            self._fetchable_queue = fetchable_queue
         else:
-            self._state = {}
+            log.debug("No fetchable queue provided so using FetchableDeque.")
+            self._fetchable_queue = FetchableDeque()
 
-        #Fetched is list of urls that have already been fetched.
-        #For now this will only be items fetched in this process, but for deduping should extend across the
-        #entire collection and use some combination of etags and fixities.
+        #Harvest state store
+        if harvest_state_store:
+            self._harvest_state_store = harvest_state_store
+        else:
+            log.debug("No harvest store provided so using DictHarvestStateStore.")
+            self._harvest_state_store = DictHarvestStateStore()
+            # self._harvest_state_store = JsonHarvestStateStore(data_path)
+            
+        #Fetch strategy
+        if fetch_strategy:
+            self._fetch_strategy = fetch_strategy
+        else:
+            log.debug("No fetchable strategy provided so using DefaultFetchStrategy.")
+            self._fetch_strategy = DefaultFetchStrategy()
+
+        #Warc writer
+        if warc_writer:
+            self._warc_writer = warc_writer
+        else:
+            log.debug("No warc writer provided so using a DryRunWarcWriter")
+            self._warc_writer = DryRunWarcWriter()
+            # self._warc_writer = WarcWriter(utilities.generate_warc_filepath(data_path, collection))
+
+        #Fetched is list of urls that have already been fetched in this harvest.
         self._fetched = []
+
+        #Auths
+        self._auths = auths or {}
 
         #Queue based on seeds
         for seed in seeds:
@@ -63,144 +81,117 @@ class SocialFeedHarvester():
         #limit and offset isn't guaranteed to be consistent across time.
         blog = Blog(blog_name, max_posts, self)
         log.debug("Queueing %s.", blog)
-        self.queue_append(blog)
+        self._queue_fetchables(blog)
 
     def queue_stream(self, name):
         stream_dir = "%s/%s" % (self.data_path, name)
         for w in os.listdir(stream_dir):
             tweet_warc = TweetWarc("%s/%s" % (stream_dir, w), self)
             log.debug("Queueing %s.", tweet_warc)
-            self.queue_append(tweet_warc)
+            self._queue_fetchables(tweet_warc)
 
     def queue_resource(self, url):
         resource = Resource(url, self)
         log.debug("Queueing %s.", resource)
-        self.queue_append(resource)
+        self._queue_fetchables(resource)
 
     def queue_user_timeline(self, screen_name):
-        user_timeline = UserTimeline(screen_name=screen_name)
+        user_timeline = UserTimeline(self, screen_name=screen_name)
         log.debug("Queueing %s.", user_timeline)
-        self.queue_append(user_timeline)
+        self._queue_fetchables(user_timeline)
 
-    def queue_append(self, fetchable):
+    def _queue_fetchables(self, fetchables, depth=1):
         """
-        Add a fetchable to the end of the queue.
+        Add a fetchable or list of fetchables to the queue.
         """
-        log.debug("Appending %s to queue.", fetchable)
-        self._queue.append(fetchable)
+        self._fetchable_queue.add(fetchables, depth)
 
-    def queue_appendleft(self, fetchable):
-        """
-        Add a fetchable to the start of the queue.
-        """
-        log.debug("Prepending %s to queue.", fetchable)
-        self._queue.appendleft(fetchable)
-
-    def queue_extendleft(self, fetchables):
-        """
-        Add fetchables to the start of the queue.
-        """
-        for fetchable in fetchables:
-            self.queue_appendleft(fetchable)
-
-    def queue_extend(self, fetchables):
-        """
-        Add fetchables to the end of the queue.
-        """
-        for fetchable in fetchables:
-            self.queue_append(fetchable)
-
-    def fetch(self, dry_run=False, exclude_fetch=None):
+    def fetch(self):
         """
         Perform the fetch.
-
-        :param dry_run: fetch, but don't write to warc.
-        :param exclude_fetch: list of class names of fetchables to exclude.
         """
-        if exclude_fetch is None:
-            exclude_fetch = []
-
-        log.info("Starting fetch. Dry run=%s. Excludes=%s.", dry_run, exclude_fetch)
-
-        warc_file = None
-        if not dry_run:
-            log.info("Writing to %s", self.warc_filepath)
-            #Create the directory
-            utilities.create_warc_dir(self.warc_filepath)
-            #Open warc
-            warc_file = warc.open(self.warc_filepath, "w")
+        log.info("Starting fetch.")
 
         try:
-            while self._queue:
-                fetchable = self._queue.popleft()
-                if fetchable.__class__.__name__ not in exclude_fetch:
-                    if fetchable.is_fetchable:
-                        log.debug("Fetching %s", fetchable)
-                        warc_records = fetchable.fetch()
-                        if warc_records:
-                            for warc_record in warc_records:
-                                if warc_file:
-                                    log.debug("Writing %s", fetchable)
-                                    warc_file.write_record(warc_record)
-                                #Add to fetched.
-                                if "WARC-Target-URI" in warc_record.header:
-                                    self._fetched.append(warc_record.header["WARC-Target-URI"])
-                        time.sleep(wait)
-                    else:
-                        log.debug("%s not fetchable", fetchable)
-                else:
-                    log.debug("Not fetching %s", fetchable)
+            for (fetchable, depth) in ((f, d) for (f, d) in self._fetchable_queue
+                                       if self._fetch_strategy.fetch_decision(f, d)):
+                    log.debug("Fetching %s (depth %s)", fetchable, depth)
+                    (warc_records, linked_fetchables) = fetchable.fetch()
+                    if linked_fetchables:
+                        self._queue_fetchables(linked_fetchables, depth+1)
+                    if warc_records:
+                        for warc_record in warc_records:
+                            log.debug("Writing %s for %s", warc_record.type, fetchable)
+                            self._warc_writer.write_record(warc_record)
+                            #Add to fetched.
+                            if "WARC-Target-URI" in warc_record.header:
+                                self._fetched.append(warc_record.header["WARC-Target-URI"])
+                    time.sleep(wait)
         finally:
-            if not dry_run:
-                warc_file.close()
+            self._warc_writer.close()
         log.info("Fetching complete.")
 
         #Save state
-        if self._state:
-            if not dry_run:
-                log.debug("Dumping state to %s", self.state_filepath)
-                with codecs.open(self.state_filepath, 'w') as state_file:
-                    json.dump(self._state, state_file)
-            else:
-                log.debug("State: %s", self._state)
+        self._harvest_state_store.close()
 
     def get_state(self, resource_type, key):
-        if resource_type in self._state and key in self._state[resource_type]:
-            return self._state[resource_type][key]
-        else:
-            return None
+        """
+        Get the state of a harvest for a resource from harvest state store.
+        """
+        return self._harvest_state_store.get_state(resource_type, key)
 
     def set_state(self, resource_type, key, value):
-        log.debug("Setting state for %s with key %s to %s", resource_type, key, value)
-        if value is not None:
-            if resource_type not in self._state:
-                self._state[resource_type] = {}
-            self._state[resource_type][key] = value
-        else:
-            #Clearing value
-            if resource_type in self._state and key in self._state[resource_type]:
-                #Delete key
-                del self._state[resource_type][key]
-                #If resource type is empty then delete
-                if not self._state[resource_type]:
-                    del self._state[resource_type]
+        """
+        Set the state of a harvest for a resource in harvest state store.
+        """
+        self._harvest_state_store.set_state(resource_type, key, value)
 
     def is_fetched(self, url):
+        """
+        Returns True if the URL has already been fetched in this harvest.
+        """
         return url in self._fetched
 
     def set_fetched(self, url):
+        """
+        Adds the URL to the list of URLs that have been fetched in this harvest.
+        """
         if url not in self._fetched:
             self._fetched.append(url)
 
+    def get_auth(self, service_name):
+        """
+        Get authentication information for the service if available.
+        """
+        return self._auths.get(service_name, {})
+
 if __name__ == '__main__':
     #Logging
-    log.setLevel(logging.DEBUG)
-    log.addHandler(logging.StreamHandler())
+    logging.basicConfig(format='%(asctime)s: %(name)s --> %(message)s', level=logging.DEBUG)
+    # log.addHandler(logging.StreamHandler())
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("collection_path", help="Filepath of the collection.")
+    parser.add_argument("seed_file", help="JSON file defining seeds for this fetch.")
+    parser.add_argument("--collection-name",
+                        help="Name of the collection.")
+    parser.add_argument("--dry-run", action="store_true", help="Fetch, but do not persist.")
+    parser.add_argument("--ignore-state", action="store_true", help="Ignore an existing persisted state.")
 
-    #Import seeds.
-    #TODO: This should be configurable.
-    import collection_config
+    args = parser.parse_args()
 
-    sfh = SocialFeedHarvester(collection_config.collection, collection_config.data_path, collection_config.seeds)
-    sfh.fetch(dry_run=collection_config.dry_run, exclude_fetch=collection_config.exclude_fetch)
+    #Load seeds
+    with open(args.seed_file) as seed_file:
+        sf = json.load(seed_file)
+
+    ww = None
+    if not args.dry_run:
+        ww = WarcWriter(utilities.generate_warc_filepath(args.collection_path, args.collection_name))
+
+    #If ignore_state, then don't load existing harvest state store.
+    #If dry_run, don't persist on close.
+    ss = JsonHarvestStateStore(args.collection_path, load_existing=not args.ignore_state, persist_on_close=not args.dry_run)
+
+    sfh = SocialFeedHarvester(sf["seeds"], auths=sf["auths"] if "auths" in sf else None,
+                              warc_writer=ww, harvest_state_store=ss)
+    sfh.fetch()

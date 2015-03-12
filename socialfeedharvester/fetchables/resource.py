@@ -33,10 +33,10 @@ class Resource(HttpLibMixin):
                     http_client.HTTPConnection)
 
                 if resp:
-                    self.process_resource(resp.content)
+                    linked_fetchables = self.process_resource(resp.content)
                     for resp in resps:
                         self.sfh.set_fetched(resp.url)
-                    return self.to_warc_records(capture_out, resps)
+                    return self.to_warc_records(capture_out, resps), linked_fetchables
                 else:
                     log.warn("Getting %s returned %s", self.url, resp.status_code)
             else:
@@ -45,8 +45,11 @@ class Resource(HttpLibMixin):
     def process_resource(self, content):
         """
         Override this to perform additional processing of the content, e.g., to queue additional fetches.
+
+        :returns List of linked fetchables.
         """
         pass
+
 
 class Image(Resource):
     pass
@@ -63,9 +66,12 @@ class Html(Resource):
         except Exception:
             log.warn("Error parsing %s", self.url)
             return
+        linked_fetchables = []
         for img in doc('img'):
             src=img.get('src')
             full_src = urlparse.urljoin(self.url, src)
+            linked_fetchables.append(Image(full_src, self.sfh))
+        return linked_fetchables
 
 
 class UnsupportedResource():
@@ -98,16 +104,17 @@ class UnknownResource():
         return _str(self.__class__, self.url)
 
     def fetch(self):
+        fetchable = None
         if not self.sfh.is_fetched(self.url):
             resp = requests.head(self.url, allow_redirects=True)
             if resp:
                 if 'content-type' in resp.headers:
                     if resp.headers['content-type'].startswith("text/html"):
-                        self.sfh.queue_appendleft(Html(self.url, self.sfh))
+                        fetchable = Html(self.url, self.sfh)
                     elif resp.headers['content-type'].startswith("image/"):
-                        self.sfh.queue_appendleft(Image(self.url, self.sfh))
+                        fetchable = Image(self.url, self.sfh)
                     elif resp.headers['content-type'].startswith("application/pdf"):
-                        self.sfh.queue_appendleft(Pdf(self.url, self.sfh))
+                        fetchable = Pdf(self.url, self.sfh)
                     else:
                         log.debug("Content-type of %s is %s", self.url, resp.headers['content-type'])
                 else:
@@ -117,3 +124,5 @@ class UnknownResource():
             self.sfh.set_fetched(self.url)
         else:
             log.debug("%s already fetched.", self.url)
+
+        return None, fetchable

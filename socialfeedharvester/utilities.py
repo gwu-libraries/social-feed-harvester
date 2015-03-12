@@ -1,4 +1,5 @@
-import warc
+from __future__ import absolute_import
+import warc as ia_warc
 import sys
 import StringIO
 import time
@@ -92,7 +93,7 @@ class HttpLibMixin():
                 else:
                     payload = http_body
 
-        return warc.WARCRecord(payload=payload, headers=warc_headers)
+        return ia_warc.WARCRecord(payload=payload, headers=warc_headers)
 
 
 class HttLib2ResponseAdapter():
@@ -118,9 +119,9 @@ class Tee(object):
         map(lambda out: out.write(data), self.outs)
 
 
-def generate_warc_filepath(data_path, collection, type=None):
+def generate_warc_filepath(data_path, collection=None, type=None):
     t = time.gmtime()
-    name = collection
+    name = collection or os.path.basename(data_path)
     if type:
         name += "-" + type
     return "%s/%s/%s/%s/%s/%s-%s.warc.gz" % (
@@ -132,10 +133,3 @@ def generate_warc_filepath(data_path, collection, type=None):
             name,
             time.strftime('%Y-%m-%dT%H:%M:%SZ', t)
         )
-
-
-def create_warc_dir(warc_filepath):
-    #Create the directory
-    warc_dir = os.path.dirname(warc_filepath)
-    if not os.path.exists(warc_dir):
-        os.makedirs(warc_dir)

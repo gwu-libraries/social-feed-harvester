@@ -1,13 +1,16 @@
 import logging
-import warc
 import json
-import resource
+import httplib as http_client
+
+from socialfeedharvester.fetchables import resource
+import warc
 import tweepy
 import tweepy.parsers
 import config
 import os
-import utilities
-import httplib as http_client
+import socialfeedharvester.utilities as utilities
+from socialfeedharvester.fetchables.fetchable_utilities import ClientManager
+
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +26,7 @@ class TweetWarc():
         #Open the warc
         log.debug("Opening %s", self.filepath)
         warc_file = warc.WARCFile(filename=self.filepath)
+        linked_fetchables = []
         try:
             for warc_record in warc_file:
                 #Ignore requests
@@ -46,7 +50,7 @@ class TweetWarc():
                                 continue
                             if 'entities' in tweet and 'urls' in tweet['entities']:
                                 for url in tweet['entities']['urls']:
-                                    self.sfh.queue_append(resource.UnknownResource(url['expanded_url'], self.sfh))
+                                    linked_fetchables.append(resource.UnknownResource(url['expanded_url'], self.sfh))
                 else:
                     log.debug("Skipping record %s (%s)", warc_record.header.record_id, warc_record.type)
         finally:
@@ -56,29 +60,32 @@ class TweetWarc():
                 log.debug("Deleting symlink %s", self.filepath)
                 os.unlink(self.filepath)
 
-        return None
+        return None, linked_fetchables
 
     def __str__(self):
         return "tweet warc at %s" % self.filepath
 
+
 class UserTimeline(utilities.HttpLibMixin):
     is_fetchable = True
 
-    def __init__(self, user_id=None, screen_name=None):
+    def __init__(self, sfh, user_id=None, screen_name=None):
+        self.sfh = sfh
         assert user_id or screen_name
         self.user_id = user_id
         self.screen_name = screen_name
-        self.url = "https://%s/statuses/user_timeline.json" % api.api_root
+        self.api = get_api(self.sfh)
+        self.url = "https://%s/statuses/user_timeline.json" % self.api.api_root
 
     def fetch(self):
-        api.parser = tweepy.parsers.RawParser()
+        self.api.parser = tweepy.parsers.RawParser()
         #api.wait_on_rate_limit = True
         #api.wait_on_rate_limit_notify = True
         page = 1
         warc_records = []
         while True:
             statuses, capture_out = self.wrap_execute(
-                lambda: api.user_timeline(page=page, screen_name=self.screen_name, count=200),
+                lambda: self.api.user_timeline(page=page, screen_name=self.screen_name, count=200),
                 http_client.HTTPConnection)
             http_headers = self.parse_capture(capture_out)
             if statuses != '[]':
@@ -95,13 +102,14 @@ class UserTimeline(utilities.HttpLibMixin):
                 # All done
                 break
             page += 1  # next page
-        return warc_records
+        #TODO:  Return additional fetchables
+        return warc_records, None
 
     def __str__(self):
         return "user timeline of %s" % self.screen_name or self.user_id
 
 
-def lookup_user_ids(screen_names):
+def lookup_user_ids(screen_names, api):
     """
     Returns a mapping of screen names to user ids for a provided list of screen names.
 
@@ -116,8 +124,19 @@ def lookup_user_ids(screen_names):
         log.warn("Screen names not found: %s", not_found)
     return result
 
-#Construct auth
-auth = tweepy.OAuthHandler(config.twitter_consumer_key, config.twitter_consumer_secret)
-auth.set_access_token(config.twitter_access_token, config.twitter_access_token_secret)
-# Construct the API instance
-api = tweepy.API(auth)
+
+def create_twitter_client(consumer_key, consumer_secret, access_token=None, access_token_secret=None):
+    #Construct auth
+    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+    if access_token and access_token_secret:
+        auth.set_access_token(access_token, access_token_secret)
+        # Construct the API instance
+    return tweepy.API(auth)
+
+client_manager = ClientManager(create_twitter_client)
+
+
+def get_api(sfh):
+    auth = sfh.get_auth("twitter")
+    return client_manager.get_client(auth["consumer_key"], auth["consumer_secret"],
+                                     access_token=auth.get("access_token"), access_token_secret=auth.get("access_token_secret"))
