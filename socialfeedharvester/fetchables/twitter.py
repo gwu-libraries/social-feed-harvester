@@ -68,44 +68,67 @@ class TweetWarc():
 class UserTimeline(utilities.HttpLibMixin):
     is_fetchable = True
 
-    def __init__(self, sfh, user_id=None, screen_name=None):
+    def __init__(self, sfh, user_id=None, screen_name=None, incremental=True, per_page=None):
         self.sfh = sfh
         assert user_id or screen_name
+        assert not (user_id and screen_name)
         self.user_id = user_id
         self.screen_name = screen_name
         self.api = get_api(self.sfh)
         self.url = "https://%s/statuses/user_timeline.json" % self.api.api_root
+        #Per page is for testing only.
+        self.per_page = per_page
+        self.incremental = incremental
 
     def fetch(self):
         self.api.parser = tweepy.parsers.RawParser()
-        #api.wait_on_rate_limit = True
-        #api.wait_on_rate_limit_notify = True
+
+        last_tweet_id = self.sfh.get_state(__name__, "%s.last_tweet_id" % (self.user_id or self.screen_name)) \
+            if self.incremental else None
+
+
         page = 1
         warc_records = []
+        fetchables = []
+        new_last_tweet_id = None
         while True:
-            statuses, capture_out = self.wrap_execute(
-                lambda: self.api.user_timeline(page=page, screen_name=self.screen_name, count=200),
+            tweets_resp, capture_out = self.wrap_execute(
+                lambda: self.api.user_timeline(page=page, screen_name=self.screen_name, user_id=self.user_id,
+                                               count=self.per_page, max_id=last_tweet_id),
                 http_client.HTTPConnection)
             http_headers = self.parse_capture(capture_out)
-            if statuses != '[]':
+            if tweets_resp != '[]':
                 #Write request and response
                 assert len(http_headers) == 2
                 #Write request
                 warc_records.append((self.to_warc_record("request", self.url,
                                                            http_header=http_headers[0])))
                 #Write response
-                warc_records.append(self.to_warc_record("response", self.url, http_body=statuses,
+                warc_records.append(self.to_warc_record("response", self.url, http_body=tweets_resp,
                                                   http_header=http_headers[1]))
+
+                #print statuses
+                tweets = json.loads(tweets_resp)
+                for tweet in tweets:
+                    new_last_tweet_id = tweet["id"]
+                    if "urls" in tweet["entities"]:
+                        for url in tweet["entities"]["urls"]:
+                            fetchables.append(resource.UnknownResource(url['expanded_url'], self.sfh))
+                    if "media" in tweet["entities"]:
+                        for media in tweet["entities"]["media"]:
+                            fetchables.append(resource.Image(media["media_url"], self.sfh))
 
             else:
                 # All done
                 break
             page += 1  # next page
-        #TODO:  Return additional fetchables
-        return warc_records, None
+        if self.incremental and new_last_tweet_id:
+            self.sfh.set_state(__name__, "%s.last_tweet_id" % (self.user_id or self.screen_name), str(new_last_tweet_id))
+
+        return warc_records, fetchables
 
     def __str__(self):
-        return "user timeline of %s" % self.screen_name or self.user_id
+        return "user timeline of %s" % (self.screen_name or self.user_id)
 
 
 def lookup_user_ids(screen_names, api):
@@ -114,6 +137,9 @@ def lookup_user_ids(screen_names, api):
 
     Note that if a screen name is not found, it will be omitted from the result.
     """
+    if isinstance(screen_names, basestring):
+        screen_names = (screen_names,)
+    api.parser = tweepy.parsers.ModelParser()
     users = api.lookup_users(screen_names=screen_names)
     result = {}
     for user in users:

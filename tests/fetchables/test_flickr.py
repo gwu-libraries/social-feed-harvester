@@ -19,7 +19,7 @@ class TestFlickr(tests.TestCase):
 
     def test_user(self):
         #Using a smaller per_page for testing
-        u = flickr.User(self.mock_sfh, username="justin.littman", per_page=5)
+        u = flickr.User(self.mock_sfh, username="justin.littman", per_page=5, incremental=False)
         warc_records, fetchables = u.fetch()
         #Warc records
         self.assertEqual(8, len(warc_records))

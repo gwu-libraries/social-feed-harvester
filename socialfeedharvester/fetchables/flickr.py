@@ -36,7 +36,6 @@ class User(HttpLibMixin):
         warc_records = []
         fetchables = []
 
-        #TODO:  Only fetch incremental
         #Get info on the user
         #Setting format=json will return raw json.
         raw_json_resp, capture_out = self.wrap_execute(
