@@ -11,7 +11,7 @@ from socialfeedharvester.fetchables.resource import Image, UnknownResource
 import youtube
 import vimeo
 import httplib2 as http_client
-from socialfeedharvester.utilities import HttpLibMixin
+from socialfeedharvester.fetchables.utilities import HttpLibMixin
 from socialfeedharvester.utilities import HttLib2ResponseAdapter
 
 log = logging.getLogger(__name__)
@@ -20,8 +20,10 @@ log = logging.getLogger(__name__)
 class Blog():
     is_fetchable = True
 
-    def __init__(self, blog_name, max_posts, sfh):
+    def __init__(self, blog_name, sfh, incremental=True, max_posts=None):
         self.blog_name = blog_name
+        self.incremental = incremental
+        #Max_posts is for testing only
         self.max_posts = max_posts
         self.sfh = sfh
 
@@ -34,9 +36,11 @@ class Blog():
         post_count = blog['blog']['posts']
         updated = blog['blog']['updated']
 
-        if self.sfh.get_state(__name__, "%s.updated" % self.blog_name) != updated:
-            last_post_id = self.sfh.get_state(__name__, "%s.last_post_id" % self.blog_name)
+        #If not incremental or value of updated has changed since last run
+        if not self.incremental or self.sfh.get_state(__name__, "%s.updated" % self.blog_name) != updated:
+            last_post_id = self.sfh.get_state(__name__, "%s.last_post_id" % self.blog_name) if self.incremental else False
             starting_offset = 0
+            #If incremental and have last post id
             if last_post_id:
                 #Try to find offset of last post by walking backwards through posts.
                 offsets = list(range(post_count-1, 0, post_limit * -1))

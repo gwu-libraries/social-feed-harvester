@@ -6,10 +6,9 @@ from socialfeedharvester.fetchables import resource
 import warc
 import tweepy
 import tweepy.parsers
-import config
 import os
-import socialfeedharvester.utilities as utilities
-from socialfeedharvester.fetchables.fetchable_utilities import ClientManager
+import socialfeedharvester.fetchables.utilities as utilities
+from socialfeedharvester.fetchables.utilities import ClientManager
 
 
 log = logging.getLogger(__name__)
@@ -26,7 +25,7 @@ class TweetWarc():
         #Open the warc
         log.debug("Opening %s", self.filepath)
         warc_file = warc.WARCFile(filename=self.filepath)
-        linked_fetchables = []
+        fetchables = []
         try:
             for warc_record in warc_file:
                 #Ignore requests
@@ -50,7 +49,7 @@ class TweetWarc():
                                 continue
                             if 'entities' in tweet and 'urls' in tweet['entities']:
                                 for url in tweet['entities']['urls']:
-                                    linked_fetchables.append(resource.UnknownResource(url['expanded_url'], self.sfh))
+                                    fetchables.append(resource.UnknownResource(url['expanded_url'], self.sfh))
                 else:
                     log.debug("Skipping record %s (%s)", warc_record.header.record_id, warc_record.type)
         finally:
@@ -60,7 +59,7 @@ class TweetWarc():
                 log.debug("Deleting symlink %s", self.filepath)
                 os.unlink(self.filepath)
 
-        return None, linked_fetchables
+        return None, fetchables
 
     def __str__(self):
         return "tweet warc at %s" % self.filepath

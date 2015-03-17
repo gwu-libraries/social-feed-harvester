@@ -1,4 +1,4 @@
-from socialfeedharvester.utilities import HttpLibMixin
+from socialfeedharvester.fetchables.utilities import HttpLibMixin
 import requests
 import logging
 import re

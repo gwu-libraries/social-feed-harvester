@@ -1,5 +1,6 @@
 from tests import TestCase
-from socialfeedharvester.fetchables.fetchable_utilities import ClientManager
+from socialfeedharvester.fetchables.utilities import ClientManager
+
 
 class TestClient():
     def __init__(self, arg1, arg2, kwarg1, kwarg2):

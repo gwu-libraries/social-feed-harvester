@@ -8,3 +8,4 @@ requests<2.4.0
 html5lib
 beautifulsoup4
 mock
+flickrapi

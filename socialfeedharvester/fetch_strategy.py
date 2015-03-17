@@ -22,7 +22,7 @@ class DefaultFetchStrategy():
     This strategy is intended to support harvesting at a limited depth, rather than more general recursive harvesting.
     """
 
-    def __init__(self, depth2_to_fetch=None, depth3_to_fetch=("Image",)):
+    def __init__(self, depth2_to_fetch=("Photo",), depth3_to_fetch=("Image",)):
         """
         :param depth2_to_fetch:  Class names of fetchables to fetch if at depth 2.
         :param depth3_to_fetch:  Class names of fetchables to fetch if found at depth 3.

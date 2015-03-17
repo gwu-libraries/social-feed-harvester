@@ -5,6 +5,7 @@ import argparse
 import json
 from socialfeedharvester.fetchables.tumblr import Blog
 from socialfeedharvester.fetchables.twitter import TweetWarc, UserTimeline
+from socialfeedharvester.fetchables.flickr import User
 from socialfeedharvester.fetchables.resource import Resource
 from config import wait
 from socialfeedharvester.fetchable_queue import FetchableDeque
@@ -61,29 +62,34 @@ class SocialFeedHarvester():
             seed_type = seed["type"]
             #Remove type from seed
             del seed["type"]
-            if seed_type == "blog":
-                self.queue_blog(**seed)
-            elif seed_type == "stream":
-                self.queue_stream(**seed)
+            if seed_type == "tumblr_blog":
+                self.queue_tumblr_blog(**seed)
+            elif seed_type == "twitter_stream":
+                self.queue_twitter_stream(**seed)
             elif seed_type == "resource":
                 self.queue_resource(**seed)
-            elif seed_type == "user_timeline":
-                self.queue_user_timeline(**seed)
+            elif seed_type == "twitter_user_timeline":
+                self.queue_twitter_user_timeline(**seed)
+            elif seed_type == "flickr_user":
+                self.queue_flickr_user(**seed)
+            else:
+                log.warn("Unknown seed type: %s", seed_type)
 
-    def queue_blog(self, blog_name, max_posts=None):
+    def queue_tumblr_blog(self, blog_name, incremental=True, max_posts=None):
         """
         Queue a blog to be fetched.
 
         :param blog_name: name of the blog. Blog short name is fine (e.g., foo instead of foo.tumblr.com).
+        :param incremental:  If True, only fetch posts new posts for the blog.  Otherwise, fetch all posts.
         :param max_posts: the maximum number of posts to fetch.  Default is all.  For testing only.
         """
         #Note that API does not support any mechanism only getting the posts since last fetch.  There is no posted-since
         #limit and offset isn't guaranteed to be consistent across time.
-        blog = Blog(blog_name, max_posts, self)
+        blog = Blog(blog_name, self, incremental=incremental, max_posts=max_posts)
         log.debug("Queueing %s.", blog)
         self._queue_fetchables(blog)
 
-    def queue_stream(self, name):
+    def queue_twitter_stream(self, name):
         stream_dir = "%s/%s" % (self.data_path, name)
         for w in os.listdir(stream_dir):
             tweet_warc = TweetWarc("%s/%s" % (stream_dir, w), self)
@@ -95,10 +101,16 @@ class SocialFeedHarvester():
         log.debug("Queueing %s.", resource)
         self._queue_fetchables(resource)
 
-    def queue_user_timeline(self, screen_name):
+    def queue_twitter_user_timeline(self, screen_name):
         user_timeline = UserTimeline(self, screen_name=screen_name)
         log.debug("Queueing %s.", user_timeline)
         self._queue_fetchables(user_timeline)
+
+    def queue_flickr_user(self, username=None, nsid=None):
+        user = User(self, username=username, nsid=nsid)
+        log.debug("Queueing %s.", user)
+        self._queue_fetchables(user)
+
 
     def _queue_fetchables(self, fetchables, depth=1):
         """
