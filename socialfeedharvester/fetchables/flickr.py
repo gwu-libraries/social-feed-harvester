@@ -170,6 +170,7 @@ def lookup_nsid(username, api):
     log.debug("Looking up username %s returned %s", username, nsid)
     return nsid
 
+
 def create_flickr_client(key, secret):
     return flickrapi.FlickrAPI(key, secret, store_token=False)
 
