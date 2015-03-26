@@ -1,0 +1,14 @@
+{
+    "seeds": [
+        {
+            "type": "flickr_user",
+            "username": "justin.littman"
+        }
+    ],
+    "auths": {
+        "flickr": {
+            "key": "abddfefb88bba36e8ef0278ec65dbbc8",
+            "secret": "164269c514cc3ebe"
+        }
+    }
+}

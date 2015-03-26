@@ -7,6 +7,7 @@ from socialfeedharvester.fetch_strategy import DefaultFetchStrategy
 from socialfeedharvester.fetchables.tumblr import Blog
 from socialfeedharvester.warc import WarcWriter
 
+
 class TestSocialFeedHarvester(TestCase):
 
     def setUp(self):

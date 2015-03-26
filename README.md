@@ -21,16 +21,29 @@ Configuration
     ```
     cp sample_config.py config.py
     ```
+    At this point, there are no values you should need to change in this file.
+    
+4. Make a copy of `sample_seeds`:
+    
+    ```
+    cp -r sample_seeds seeds
+    ```
+    Make changes in the seed files (or create additional) as appropriate.  _You must provide correct Twitter, Flickr, and Tumblr api credentials._
+
 
 sfh
 ---
-sfh will harvest the seeds specified in `collection_config.py`.
+sfh will harvest Twitter, Flickr, and Tumblr data.  It can be invoked with:
+
+```
+python sfh.py <collection path> <seed file>
+```
+
+For example:
+```
+python sfh.py /collections/my_collection seeds/flickr_seeds.json
+```
 
 twh
 ---
-twh will harvest from the Twitter Streaming API.  Streams are specified in `collection_config.py`.
-
-The stream name must be provided as an argument.  For example:
-```
-python twh.py sample
-```
+twh will harvest from the Twitter Streaming API.  __It is currently broken.__

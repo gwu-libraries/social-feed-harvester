@@ -49,7 +49,6 @@ class SocialFeedHarvester():
         else:
             log.debug("No warc writer provided so using a DryRunWarcWriter")
             self._warc_writer = DryRunWarcWriter()
-            # self._warc_writer = WarcWriter(utilities.generate_warc_filepath(data_path, collection))
 
         #Fetched is list of urls that have already been fetched in this harvest.
         self._fetched = []
@@ -81,11 +80,10 @@ class SocialFeedHarvester():
 
         :param blog_name: name of the blog. Blog short name is fine (e.g., foo instead of foo.tumblr.com).
         :param incremental:  If True, only fetch posts new posts for the blog.  Otherwise, fetch all posts.
-        :param max_posts: the maximum number of posts to fetch.  Default is all.  For testing only.
         """
         #Note that API does not support any mechanism only getting the posts since last fetch.  There is no posted-since
         #limit and offset isn't guaranteed to be consistent across time.
-        blog = Blog(blog_name, self, incremental=incremental, max_posts=max_posts)
+        blog = Blog(blog_name, self, incremental=incremental)
         log.debug("Queueing %s.", blog)
         self._queue_fetchables(blog)
 

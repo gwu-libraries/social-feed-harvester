@@ -118,7 +118,7 @@ class HttpLibMixin():
     def to_warc_record(self, warc_type, url, http_header=None, http_body=None, concurrent_to_warc_record=None,
                        headers=None):
         warc_headers = {
-            "WARC-Target-Target-URI": url,
+            "WARC-Target-URI": url,
             "WARC-Type": warc_type
         }
         if headers:

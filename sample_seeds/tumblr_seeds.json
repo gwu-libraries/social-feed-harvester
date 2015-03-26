@@ -1,0 +1,13 @@
+{
+    "seeds": [
+        {
+            "type": "tumblr_blog",
+            "blog_name": "justinlittman-dev"
+        }
+    ],
+    "auths": {
+        "tumblr": {
+            "api_key": "Fi0Q9w9QcW5yzy66RtFCni14QpM0pjuHbDWMrZ9aPXcsthVQq"
+        }
+    }
+}

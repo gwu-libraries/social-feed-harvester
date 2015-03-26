@@ -59,4 +59,5 @@ target/
 # SFH
 config.py
 test_config.py
+seeds/
 

@@ -1,0 +1,17 @@
+{
+    "seeds": [
+        {
+            "type": "twitter_user_timeline",
+            "screen_name": "justin_littman"
+        }
+    ],
+    "auths": {
+        "twitter": {
+            "consumer_key": "EdoT1e7ksBgflP5nUalEfhaeo",
+            "consumer_secret": "ZtUemtBkf23cEmagqiy52Ddihu9FPAiLebuMOmqN0jeQtXeAlen",
+            "access_token": "481186914-c2yZjbkp0Z5MRwWEFYYQKSQNFBXd8T9r4k90YkJl",
+            "access_token_secret": "jK9QOmn5V14mfg2ANKgfmCKR5qV8ThXVQ1G6qQg8BCejvp"
+
+        }
+    }
+}

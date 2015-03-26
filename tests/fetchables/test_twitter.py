@@ -32,8 +32,10 @@ class TestTwitter(tests.TestCase):
         self.assertEqual(6, len(warc_records))
         #First should be a request
         self.assertEqual(warc_records[0].type, "request")
+        self.assertEqual(warc_records[0].url, "https://api.twitter.com/1.1/statuses/user_timeline.json")
         #And second a response
         self.assertEqual(warc_records[1].type, "response")
+        self.assertEqual(warc_records[1].url, "https://api.twitter.com/1.1/statuses/user_timeline.json")
 
         #Fetchables
         self.assertEqual(2, len(fetchables))

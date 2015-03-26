@@ -69,7 +69,6 @@ class User(HttpLibMixin):
             http_headers = self.parse_capture(capture_out)
 
             json_resp = json.loads(raw_json_resp)
-            #print json.dumps(json_resp, indent=4)
             #Going through photos backwards
             added_fetchables = False
             for photo in reversed(json_resp["photos"]["photo"]):
@@ -144,7 +143,6 @@ class Photo(HttpLibMixin):
 
         #Call getSizes, but don't record
         sizes_json_resp = self.api.photos.getSizes(photo_id=self.photo_id, format='parsed-json')
-        print json.dumps(sizes_json_resp, indent=4)
         for size in sizes_json_resp["sizes"]["size"]:
             if size["label"] in self.sizes:
                 log.debug("Creating fetchable for %s", size["label"])
@@ -152,8 +150,6 @@ class Photo(HttpLibMixin):
             else:
                 log.debug("Skipping fetchable for %s", size["label"])
 
-        #json_resp = json.loads(raw_json_resp)
-        #print json.dumps(json_resp, indent=4)
         return warc_records, fetchables
 
 def lookup_nsid(username, api):
