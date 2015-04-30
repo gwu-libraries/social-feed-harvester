@@ -20,15 +20,18 @@ class TestHttp(TestCase):
                 <img alt="Wired Twitter" class="float-l marg-r-sm marg-b-big" src="http://www.wired.com/wp-content/themes/Phoenix/assets/images/apple-touch-icon.png">
                 <img alt="No source" />
                 <img src="/images/US-GAO-logo.png" id="gaologotext" itemprop="logo" height="49" width="485" border="0" alt="U.S. Government Accountability Office (GAO)">
+                <a href="/assets/670/669367.pdf">View Report&nbsp;(PDF, 133 pages)</a>
+                <a href="/another/page">Another page</a>
             </body>
         </html>
         """
         fetchables = html.process_resource(content, "http://1.test.com/page.html")
-        self.assertEqual(4, len(fetchables))
+        self.assertEqual(5, len(fetchables))
         self.assertIn(CompareResource(Image, "http://www.wired.com/wp-content/themes/Phoenix/assets/images/apple-touch-icon.png"), fetchables)
         self.assertIn(CompareResource(Image, "http://1.test.com/images/US-GAO-logo.png"), fetchables)
         self.assertIn(CompareResource(Stylesheet, "http://www.wired.com/wp-content/themes/Phoenix/assets/css/style.css?ver=1430166175"), fetchables)
         self.assertIn(CompareResource(Script, "http://www.wired.com/assets/load?scripts=true&c=1&load%5B%5D=jquery-sonar"), fetchables)
+        self.assertIn(CompareResource(Pdf, "http://1.test.com/assets/670/669367.pdf"), fetchables)
 
     def test_redirect(self):
         #1.usa.gov is a shortened url service.  Need to test that linked fetchables are relative to unshortened url.

@@ -120,6 +120,11 @@ class Html(Resource, WebPageType):
         # <script type='text/javascript' src=
         for scr in doc.find_all("script", src=True):
             linked_fetchables.append(Script(urlparse.urljoin(url, scr["src"]), self.sfh))
+        #Pdfs
+        #Really this should all be UnknownResources, but that would mean fetching each link.
+        #Cheating for performance reasons.
+        for lnk in doc.find_all("a", href=re.compile(".pdf$", flags=re.IGNORECASE)):
+            linked_fetchables.append(Pdf(urlparse.urljoin(url, lnk["href"]), self.sfh))
 
         return linked_fetchables
 
@@ -153,7 +158,7 @@ class UnknownResource():
         self.url = url
         self.sfh = sfh
         self.hostname = urlparse.urlparse(url).hostname
-        
+
     def __str__(self):
         return _str(self.__class__, self.url)
 
