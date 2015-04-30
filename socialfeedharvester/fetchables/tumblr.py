@@ -9,6 +9,7 @@ from socialfeedharvester.fetchables.resource import Image, UnknownResource
 import youtube
 import vimeo
 import httplib2 as http_client
+import urlparse
 from socialfeedharvester.fetchables.utilities import HttpLibMixin, ClientManager
 from socialfeedharvester.utilities import HttLib2ResponseAdapter
 
@@ -27,8 +28,10 @@ class Blog():
         #Allowing a null sfh is for testing purposes only.
         if sfh:
             self.client = get_client(self.sfh)
+            self.hostname = urlparse.urlparse(self.client.request.host).hostname
         else:
             log.warning("Using a null sfh. This should be used for testing only.")
+
 
     def __str__(self):
         return "blog %s" % (self.blog_name,)

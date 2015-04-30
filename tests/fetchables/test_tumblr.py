@@ -50,6 +50,9 @@ class TestTumblr(tests.TestCase):
 
     def test_blog(self):
         b = tumblr.Blog("justinlittman-dev", self.mock_sfh, incremental=False, per_page=3)
+
+        self.assertEqual("api.tumblr.com", b.hostname)
+
         warc_records, fetchables = b.fetch()
 
         # 3 pages

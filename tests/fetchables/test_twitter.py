@@ -25,6 +25,10 @@ class TestTwitter(tests.TestCase):
 
     def test_user_timeline(self):
         u = twitter.UserTimeline(self.mock_sfh, screen_name="jlittman_dev", per_page=3, incremental=False)
+
+        #Hostname
+        self.assertEqual("api.twitter.com", u.hostname)
+
         warc_records, fetchables = u.fetch()
 
         #Warc records

@@ -1,6 +1,7 @@
 import logging
 import inspect
 from socialfeedharvester.fetchables.resource import UnknownResource
+from socialfeedharvester.fetchables.resource_type import WebPagePartType
 
 log = logging.getLogger(__name__)
 
@@ -26,13 +27,15 @@ class DefaultFetchStrategy():
     of relevant fetchable classes.  For example, DocumentType is a superclass of the Pdf fetchable.
     """
 
-    def __init__(self, depth2_resource_types=None, depth3_resource_types=None):
+    def __init__(self, depth2_resource_types=None, depth3_resource_types=None, webpageparttype_above_depth2=True):
         """
         :param depth2_resource_types:  Class names of resource types to fetch if at depth 2.
         :param depth3_resource_types:  Class names of resource types to fetch if found at depth 3.
+        :param webpageparttype_above_depth2:  Fetch WebPagePartTypes at any depth greater than depth 2.
         """
         self.depth2_resource_types = depth2_resource_types or []
         self.depth3_resource_types = depth3_resource_types or []
+        self.webpageparttype_above_depth2 = webpageparttype_above_depth2
 
     def fetch_decision(self, fetchable, depth):
         """
@@ -45,6 +48,12 @@ class DefaultFetchStrategy():
         #Always fetch depth 1:
         elif depth == 1:
             log.debug("Fetching %s since it is a seed.", fetchable)
+            return True
+        #Maybe fetch WebPagePartTypes
+        elif (self.webpageparttype_above_depth2
+              and depth > 2
+              and self._in_resource_types(fetchable, (WebPagePartType.__name__,))):
+            log.debug("Fetching %s since a web page part type.", fetchable)
             return True
         elif depth == 2:
             if self._in_resource_types(fetchable, self.depth2_resource_types):

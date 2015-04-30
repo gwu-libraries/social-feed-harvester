@@ -38,6 +38,45 @@ class TestHttp(TestCase):
         (warc_records, fetchables) = html.fetch()
         self.assertIn(CompareResource(Image, "http://www.gao.gov/images/US-GAO-logo.png"), fetchables)
 
+    def test_hostname(self):
+        html = Html("http://test.com:8080/page.html", None)
+        self.assertEqual("test.com", html.hostname)
+
+
+class TestStylesheet(TestCase):
+    def test_process_resource(self):
+        stylesheet = Stylesheet("http://test.com/static/test.css", None)
+
+        content = """
+        #headerInner {
+        background-repeat:repeat-x;
+        background-image:url("/inc/gr/bannerbg.jpg");
+        border-width:0;
+        margin:0;
+        padding:0;
+        }
+
+        #gaotabs li {
+        float:left;
+        background:url("/inc/gr/left.gif") no-repeat left top;
+        margin:0;
+        padding:0 0 0 9px;
+        }
+
+        li {
+        background:
+        url(data:image/gif;base64,R0lGODlhEAAQAMQAAORHHOVSKudfOulrSOp3WOyDZu6QdvCchPGolfO0o/XBs/fNwfjZ0frl3/zy7////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAkAABAALAAAAAAQABAAAAVVICSOZGlCQAosJ6mu7fiyZeKqNKToQGDsM8hBADgUXoGAiqhSvp5QAnQKGIgUhwFUYLCVDFCrKUE1lBavAViFIDlTImbKC5Gm2hB0SlBCBMQiB0UjIQA7)
+        no-repeat
+        left center;
+        padding: 5px 0 5px 25px;
+        }
+        """
+
+        fetchables = stylesheet.process_resource(content, "http://1.test.com/static/test.css")
+        self.assertEqual(2, len(fetchables))
+        self.assertIn(CompareResource(Image, "http://1.test.com/inc/gr/bannerbg.jpg"), fetchables)
+        self.assertIn(CompareResource(Image, "http://1.test.com/inc/gr/left.gif"), fetchables)
+
 
 class CompareResource():
     def __init__(self, clazz, url):

@@ -3,6 +3,7 @@ import requests
 import logging
 import re
 from bs4 import BeautifulSoup
+import cssutils
 import urlparse
 import httplib as http_client
 from socialfeedharvester.fetchables.resource_type import ImageType, DocumentType, WebPageType, AnyResourceType, \
@@ -21,6 +22,7 @@ class Resource(HttpLibMixin, AnyResourceType):
     def __init__(self, url, sfh):
         self.url = url
         self.sfh = sfh
+        self.hostname = urlparse.urlparse(url).hostname
 
     def __str__(self):
         return _str(self.__class__, self.url)
@@ -75,6 +77,21 @@ class Stylesheet(Resource, WebPagePartType):
     def __init__(self, url, sfh):
         Resource.__init__(self, url, sfh)
 
+    def process_resource(self, content, url):
+        try:
+            sheet = cssutils.parseString(content, href=url)
+        except Exception:
+            log.warn("Error parsing %s", url)
+            return
+
+        linked_fetchables = []
+        for img_url in cssutils.getUrls(sheet):
+            #Ignore data: uris
+            if not img_url.startswith("data:"):
+                linked_fetchables.append(Image(urlparse.urljoin(url, img_url), self.sfh))
+
+        return linked_fetchables
+
 
 class Script(Resource, WebPagePartType):
     def __init__(self, url, sfh):
@@ -89,7 +106,7 @@ class Html(Resource, WebPageType):
         try:
             doc = BeautifulSoup(content)
         except Exception:
-            log.warn("Error parsing %s", self.url)
+            log.warn("Error parsing %s", url)
             return
         linked_fetchables = []
         #Images
@@ -135,7 +152,8 @@ class UnknownResource():
     def __init__(self, url, sfh):
         self.url = url
         self.sfh = sfh
-
+        self.hostname = urlparse.urlparse(url).hostname
+        
     def __str__(self):
         return _str(self.__class__, self.url)
 

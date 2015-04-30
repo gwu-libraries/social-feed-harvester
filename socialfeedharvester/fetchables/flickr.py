@@ -2,7 +2,7 @@ import flickrapi
 import logging
 import httplib as http_client
 import json
-
+import urlparse
 from socialfeedharvester.fetchables.utilities import ClientManager, HttpLibMixin
 from socialfeedharvester.fetchables.resource import Image
 from socialfeedharvester.fetchables.resource_type import FlickrType
@@ -14,6 +14,7 @@ FLICKR_HOST = "https://api.flickr.com"
 
 class User(HttpLibMixin):
     is_fetchable = True
+    hostname = urlparse.urlparse(FLICKR_HOST).hostname
 
     def __init__(self, sfh, username=None, nsid=None, incremental=True, per_page=None):
         self.sfh = sfh
@@ -112,6 +113,7 @@ class User(HttpLibMixin):
 
 class Photo(HttpLibMixin, FlickrType):
     is_fetchable = True
+    hostname = urlparse.urlparse(FLICKR_HOST).hostname
 
     def __init__(self, photo_id, secret, sfh, sizes=("Thumbnail", "Large", "Original")):
         self.sfh = sfh

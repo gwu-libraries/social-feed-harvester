@@ -3,6 +3,7 @@ import warc as ia_warc
 import sys
 import StringIO
 
+
 class ClientManager():
     """
     Keeps track of social media service client/api objects.

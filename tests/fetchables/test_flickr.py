@@ -20,7 +20,12 @@ class TestFlickr(tests.TestCase):
     def test_user(self):
         #Using a smaller per_page for testing
         u = flickr.User(self.mock_sfh, username="justin.littman", per_page=5, incremental=False)
+
+        #Hostname
+        self.assertEqual("api.flickr.com", u.hostname)
+
         warc_records, fetchables = u.fetch()
+
         #Warc records
         self.assertEqual(8, len(warc_records))
         #First should be a request
@@ -36,6 +41,10 @@ class TestFlickr(tests.TestCase):
 
     def test_photo(self):
         p = flickr.Photo("16796603565", "90f7d5c74c", self.mock_sfh, sizes=("Square",))
+
+        #Hostname
+        self.assertEqual("api.flickr.com", p.hostname)
+
         warc_records, fetchables = p.fetch()
 
         #Warc records for the call to photo info

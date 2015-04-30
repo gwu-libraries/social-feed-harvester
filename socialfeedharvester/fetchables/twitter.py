@@ -82,6 +82,8 @@ class UserTimeline(utilities.HttpLibMixin):
         #Per page is for testing only.
         self.per_page = per_page
         self.incremental = incremental
+        self.hostname = self.api.host
+
 
     def fetch(self):
         self.api.parser = tweepy.parsers.RawParser()

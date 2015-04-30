@@ -14,7 +14,6 @@ from socialfeedharvester.fetch_strategy import DefaultFetchStrategy
 from socialfeedharvester.warc import DryRunWarcWriter, WarcWriter
 import socialfeedharvester.utilities as utilities
 
-
 log = logging.getLogger("socialfeedharvester")
 
 
@@ -109,7 +108,6 @@ class SocialFeedHarvester():
         log.debug("Queueing %s.", user)
         self._queue_fetchables(user)
 
-
     def _queue_fetchables(self, fetchables, depth=1):
         """
         Add a fetchable or list of fetchables to the queue.
@@ -123,13 +121,21 @@ class SocialFeedHarvester():
         log.info("Starting fetch.")
 
         try:
+            last_hostname = None
             for (fetchable, depth) in ((f, d) for (f, d) in self._fetchable_queue
                                        if self._fetch_strategy.fetch_decision(f, d)):
-                    log.debug("Fetching %s (depth %s)", fetchable, depth)
+                    sleep_msg = "without sleep"
+                    if last_hostname == fetchable.hostname:
+                        time.sleep(wait)
+                        sleep_msg = "with sleep"
+                    last_hostname = fetchable.hostname
+
+                    log.debug("Fetching %s (depth %s) %s", fetchable, depth, sleep_msg)
                     (warc_records, linked_fetchables) = fetchable.fetch()
                     if linked_fetchables:
                         #Depth incremented except for linked fetchables from UnknownResources
-                        self._queue_fetchables(linked_fetchables, depth+1 if not isinstance(fetchable, UnknownResource) else depth)
+                        self._queue_fetchables(linked_fetchables,
+                                               depth+1 if not isinstance(fetchable, UnknownResource) else depth)
                     if warc_records:
                         for warc_record in warc_records:
                             log.debug("Writing %s for %s", warc_record.type, fetchable)
@@ -137,7 +143,7 @@ class SocialFeedHarvester():
                             #Add to fetched.
                             if "WARC-Target-URI" in warc_record.header:
                                 self._fetched.append(warc_record.header["WARC-Target-URI"])
-                    time.sleep(wait)
+
         finally:
             self._warc_writer.close()
         log.info("Fetching complete.")

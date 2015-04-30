@@ -9,3 +9,4 @@ html5lib
 beautifulsoup4
 mock
 flickrapi
+cssutils
