@@ -5,6 +5,7 @@ import json
 
 from socialfeedharvester.fetchables.utilities import ClientManager, HttpLibMixin
 from socialfeedharvester.fetchables.resource import Image
+from socialfeedharvester.fetchables.resource_type import FlickrType
 
 log = logging.getLogger(__name__)
 
@@ -109,7 +110,7 @@ class User(HttpLibMixin):
         return "flickr user %s" % self.nsid
 
 
-class Photo(HttpLibMixin):
+class Photo(HttpLibMixin, FlickrType):
     is_fetchable = True
 
     def __init__(self, photo_id, secret, sfh, sizes=("Thumbnail", "Large", "Original")):

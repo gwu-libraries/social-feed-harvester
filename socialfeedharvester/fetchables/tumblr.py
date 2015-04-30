@@ -24,7 +24,11 @@ class Blog():
         #per_page is for testing only
         self.per_page = per_page
         self.sfh = sfh
-        self.client = get_client(self.sfh)
+        #Allowing a null sfh is for testing purposes only.
+        if sfh:
+            self.client = get_client(self.sfh)
+        else:
+            log.warning("Using a null sfh. This should be used for testing only.")
 
     def __str__(self):
         return "blog %s" % (self.blog_name,)

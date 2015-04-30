@@ -25,17 +25,17 @@ class Tee(object):
         map(lambda out: out.write(data), self.outs)
 
 
-def generate_warc_filepath(data_path, collection=None, type=None):
+def generate_warc_filepath(data_path, collection=None, warc_type=None):
     t = time.gmtime()
-    name = collection or os.path.basename(data_path)
-    if type:
-        name += "-" + type
+    name = collection or os.path.basename(data_path.rstrip("/"))
+    if warc_type:
+        name += "-" + warc_type
     return "%s/%s/%s/%s/%s/%s-%s.warc.gz" % (
-            data_path,
-            time.strftime('%Y', t),
-            time.strftime('%m', t),
-            time.strftime('%d', t),
-            time.strftime('%H', t),
-            name,
-            time.strftime('%Y-%m-%dT%H:%M:%SZ', t)
-        )
+        data_path,
+        time.strftime('%Y', t),
+        time.strftime('%m', t),
+        time.strftime('%d', t),
+        time.strftime('%H', t),
+        name,
+        time.strftime('%Y-%m-%dT%H:%M:%SZ', t)
+    )

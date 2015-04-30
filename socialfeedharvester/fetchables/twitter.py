@@ -74,7 +74,11 @@ class UserTimeline(utilities.HttpLibMixin):
         assert not (user_id and screen_name)
         self.user_id = user_id
         self.screen_name = screen_name
-        self.api = get_api(self.sfh)
+        #Allowing a null sfh is for testing purposes only.
+        if sfh:
+            self.api = get_api(self.sfh)
+        else:
+            log.warning("Using a null sfh. This should be used for testing only.")
         #Per page is for testing only.
         self.per_page = per_page
         self.incremental = incremental
@@ -99,7 +103,7 @@ class UserTimeline(utilities.HttpLibMixin):
             if tweets_resp != '[]':
                 #Write request and response
                 assert len(http_headers) == 2
-                url = "%s%s" % (self.api.host, self.parse_url(http_headers[0]))
+                url = "https://%s%s" % (self.api.host, self.parse_url(http_headers[0]))
                 #Write request
                 warc_records.append((self.to_warc_record("request", url,
                                                            http_header=http_headers[0])))

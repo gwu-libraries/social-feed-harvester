@@ -10,8 +10,8 @@ class TestTwitter(tests.TestCase):
         if not tests.test_config_available:
             self.skipTest("Skipping test since test config not available.")
         self.api = twitter.client_manager.get_client(tests.TWITTER_CONSUMER_KEY, tests.TWITTER_CONSUMER_SECRET,
-                                                     access_token = tests.TWITTER_ACCESS_TOKEN,
-                                                     access_token_secret = tests.TWITTER_ACCESS_TOKEN_SECRET)
+                                                     access_token=tests.TWITTER_ACCESS_TOKEN,
+                                                     access_token_secret=tests.TWITTER_ACCESS_TOKEN_SECRET)
         self.mock_sfh = MagicMock(spec=SocialFeedHarvester)
         self.mock_sfh.get_auth.return_value= {"consumer_key": tests.TWITTER_CONSUMER_KEY,
                                               "consumer_secret": tests.TWITTER_CONSUMER_SECRET,
@@ -31,11 +31,15 @@ class TestTwitter(tests.TestCase):
         #3 pages
         self.assertEqual(6, len(warc_records))
         #First should be a request
-        self.assertEqual(warc_records[0].type, "request")
-        self.assertEqual(warc_records[0].url, "https://api.twitter.com/1.1/statuses/user_timeline.json")
+        self.assertEqual("request", warc_records[0].type)
+        self.assertEqual(
+            "https://api.twitter.com/1.1/statuses/user_timeline.json?count=3&page=1&screen_name=jlittman_dev",
+            warc_records[0].url)
         #And second a response
-        self.assertEqual(warc_records[1].type, "response")
-        self.assertEqual(warc_records[1].url, "https://api.twitter.com/1.1/statuses/user_timeline.json")
+        self.assertEqual("response", warc_records[1].type)
+        self.assertEqual(
+            "https://api.twitter.com/1.1/statuses/user_timeline.json?count=3&page=1&screen_name=jlittman_dev",
+            warc_records[1].url)
 
         #Fetchables
         self.assertEqual(2, len(fetchables))

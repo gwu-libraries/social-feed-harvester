@@ -13,5 +13,13 @@
             "access_token_secret": "jK9QOmn5V14mfg2ANKgfmCKR5qV8ThXVQ1G6qQg8BCejvp"
 
         }
+    },
+    "fetch_strategy": {
+        "depth2_resource_types": [
+            "AnyResourceType"
+        ],
+        "depth3_resource_types": [
+            "WebPagePartType"
+        ]
     }
 }

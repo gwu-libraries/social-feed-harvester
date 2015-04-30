@@ -6,7 +6,7 @@ import json
 from socialfeedharvester.fetchables.tumblr import Blog
 from socialfeedharvester.fetchables.twitter import TweetWarc, UserTimeline
 from socialfeedharvester.fetchables.flickr import User
-from socialfeedharvester.fetchables.resource import Resource
+from socialfeedharvester.fetchables.resource import Resource, UnknownResource
 from config import wait
 from socialfeedharvester.fetchable_queue import FetchableDeque
 from socialfeedharvester.harvest_state_store import DictHarvestStateStore, JsonHarvestStateStore
@@ -128,7 +128,8 @@ class SocialFeedHarvester():
                     log.debug("Fetching %s (depth %s)", fetchable, depth)
                     (warc_records, linked_fetchables) = fetchable.fetch()
                     if linked_fetchables:
-                        self._queue_fetchables(linked_fetchables, depth+1)
+                        #Depth incremented except for linked fetchables from UnknownResources
+                        self._queue_fetchables(linked_fetchables, depth+1 if not isinstance(fetchable, UnknownResource) else depth)
                     if warc_records:
                         for warc_record in warc_records:
                             log.debug("Writing %s for %s", warc_record.type, fetchable)
@@ -200,8 +201,15 @@ if __name__ == '__main__':
 
     #If ignore_state, then don't load existing harvest state store.
     #If dry_run, don't persist on close.
-    ss = JsonHarvestStateStore(args.collection_path, load_existing=not args.ignore_state, persist_on_close=not args.dry_run)
+    ss = JsonHarvestStateStore(args.collection_path, load_existing=not args.ignore_state,
+                               persist_on_close=not args.dry_run)
+
+    #Setup a fetch strategy
+    fs = None
+    if "fetch_strategy" in sf:
+        fs = DefaultFetchStrategy(depth2_resource_types=sf["fetch_strategy"].get("depth2_resource_types"),
+                                  depth3_resource_types=sf["fetch_strategy"].get("depth3_resource_types"))
 
     sfh = SocialFeedHarvester(sf["seeds"], auths=sf["auths"] if "auths" in sf else None,
-                              warc_writer=ww, harvest_state_store=ss)
+                              warc_writer=ww, harvest_state_store=ss, fetch_strategy=fs)
     sfh.fetch()

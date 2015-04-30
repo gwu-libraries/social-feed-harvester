@@ -155,7 +155,7 @@ class WarcListener(StreamListener, HttpLibMixin):
         self.period_start_time = time.time()
 
         #Open the warc
-        self.warc_filepath = utilities.generate_warc_filepath(self.data_dir, self.collection, type=self.stream_name)
+        self.warc_filepath = utilities.generate_warc_filepath(self.data_dir, self.collection, warc_type=self.stream_name)
         utilities.create_warc_dir(self.warc_filepath)
         log.debug("Opening %s", self.warc_filepath)
         self.warc = warc.open(self.warc_filepath, "wb")

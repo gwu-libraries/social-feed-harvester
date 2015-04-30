@@ -9,5 +9,13 @@
         "tumblr": {
             "api_key": "Fi0Q9w9QcW5yzy66RtFCni14QpM0pjuHbDWMrZ9aPXcsthVQq"
         }
+    },
+    "fetch_strategy": {
+        "depth2_resource_types": [
+            "AnyResourceType"
+        ],
+        "depth3_resource_types": [
+            "WebPagePartType"
+        ]
     }
 }
